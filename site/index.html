@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#14202b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BTSC Crew">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>BTSC Crew Hub</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Source+Sans+3:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="shim.js"></script>
+<style>
+/* Layout: one-column phone app. Sign-in card, then My day: day strip + job cards with a big Done button. */
+:root{
+  --bg:#eef2f6; --surface:#ffffff; --raise:#f7f9fb; --fg:#14202b; --muted:#5a6b7a; --line:#d6dee6;
+  --accent:#e2621b; --accent-ink:#ffffff; --ok:#1f7a4d; --okbg:#e3f3ea; --warn:#a15c00; --warnbg:#fbf0dc; --crit:#b3261e;
+  --t-mow:#2f6b31; --t-mow-bg:#dff0df; --t-stakes:#1f5fa8; --t-stakes-bg:#e0ebf8; --t-container:#6a3fa0; --t-container-bg:#ece3f6;
+  --t-snowrator:#0b6f78; --t-snowrator-bg:#dbf0f1; --t-repair:#9a5200; --t-repair-bg:#fbebd5; --t-pw:#1c6a8f; --t-pw-bg:#dcedf5;
+  --t-shop:#4f5b60; --t-shop-bg:#e5e9ea; --t-help:#4a5570; --t-help-bg:#e3e6ef; --t-other:#5b5145; --t-other-bg:#efebe5; --t-cleanup:#9b3d12; --t-cleanup-bg:#f9e3d6;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0c1319; --surface:#151f29; --raise:#1a2632; --fg:#e6edf3; --muted:#93a4b3; --line:#283846;
+  --accent:#f07a35; --accent-ink:#1a0d04; --ok:#4cc38a; --okbg:#173326; --warn:#e3a14a; --warnbg:#3a2a12; --crit:#f2766d;
+  --t-mow:#8fd492; --t-mow-bg:#1f3321; --t-stakes:#8dbcf0; --t-stakes-bg:#1b2b3e; --t-container:#c4a5ec; --t-container-bg:#2b2238;
+  --t-snowrator:#74d3db; --t-snowrator-bg:#173033; --t-repair:#f0b062; --t-repair-bg:#3a2a14; --t-pw:#86c6e6; --t-pw-bg:#18303c;
+  --t-shop:#b3bfc4; --t-shop-bg:#273033; --t-help:#b3bcd6; --t-help-bg:#262b3a; --t-other:#d2c6b6; --t-other-bg:#302a23; --t-cleanup:#f2a07a; --t-cleanup-bg:#3a2116;
+  color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--fg)}
+body{font-family:var(--body);font-size:16px;line-height:1.4;min-height:100vh}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--fg);color:var(--surface);border-bottom:3px solid var(--accent);padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;align-items:center;gap:12px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--fg)}
+.bar b{font-family:var(--display);font-size:1.4rem;text-transform:uppercase;letter-spacing:.03em;line-height:1;display:block}
+.bar small{opacity:.8;font-size:.8rem}
+.bar .sp{flex:1}
+.bar button{background:transparent;color:var(--surface);border:1px solid color-mix(in srgb,var(--surface) 40%,transparent)}
+main{max-width:560px;margin:0 auto;padding-block:16px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px}
+button,input,select{font:inherit;color:var(--fg)}
+button{cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--surface);padding:8px 14px;font-weight:600}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:disabled{opacity:.55;cursor:default}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input{background:var(--raise);border:1px solid var(--line);border-radius:8px;padding:12px 14px;font-size:1.1rem;width:100%}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:grid;gap:12px}
+h1{font-family:var(--display);font-size:2.1rem;line-height:1;margin:0;text-transform:uppercase}
+h2{font-family:var(--display);font-size:1.4rem;margin:0;text-transform:uppercase;letter-spacing:.02em}
+.note{color:var(--muted);font-size:.9rem}
+.err{color:var(--crit);font-weight:600;font-size:.95rem}
+label.f{display:grid;gap:5px;font-size:.78rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.pin{font-family:var(--mono);letter-spacing:.5em;text-align:center;font-size:1.6rem}
+.big{padding:14px;font-size:1.1rem;width:100%}
+.days{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.days button{flex:1 0 64px;display:grid;gap:1px;padding:8px 4px;text-align:center;font-family:var(--display);font-size:1.05rem;text-transform:uppercase}
+.days button small{font-family:var(--mono);font-size:.68rem;color:var(--muted);text-transform:none}
+.days button[aria-pressed="true"]{background:var(--fg);color:var(--surface);border-color:var(--fg)}
+.days button[aria-pressed="true"] small{color:var(--surface)}
+.days button.today:not([aria-pressed="true"]){border-color:var(--accent)}
+.wk{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.wk span{font-family:var(--display);font-size:1.15rem;text-transform:uppercase}
+.wk button{padding:6px 12px}
+.prog{display:flex;align-items:center;gap:10px;font-size:.95rem;color:var(--muted)}
+.prog .m{flex:1;height:10px;border-radius:5px;background:var(--line);overflow:hidden}
+.prog .m i{display:block;height:100%;background:var(--ok);transition:width .4s}
+.job{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--tc);border-radius:12px;padding:14px;display:grid;gap:8px}
+.job .k{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tc)}
+.job .s{font-family:var(--display);font-size:1.7rem;line-height:1.05}
+.job .n{color:var(--muted);font-size:.95rem}
+.job .row{display:flex;gap:8px;flex-wrap:wrap}
+.job .done-btn{flex:1;min-width:160px;padding:14px;font-size:1.1rem;background:var(--ok);color:#fff;border-color:var(--ok)}
+.job.isdone{background:var(--okbg);border-color:color-mix(in srgb,var(--ok) 50%,transparent)}
+.job.isdone .s{text-decoration:line-through;text-decoration-thickness:2px;color:var(--muted)}
+.job .stamp{font-weight:700;color:var(--ok)}
+.job.pop{animation:pop .8s ease}
+@keyframes pop{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 70%,transparent)}100%{box-shadow:0 0 0 16px transparent}}
+.empty{text-align:center;color:var(--muted);padding:28px 12px}
+.ty-mow{--tc:var(--t-mow)} .ty-cleanup{--tc:var(--t-cleanup)} .ty-stakes{--tc:var(--t-stakes)} .ty-container{--tc:var(--t-container)} .ty-snowrator{--tc:var(--t-snowrator)}
+.ty-repair{--tc:var(--t-repair)} .ty-pw{--tc:var(--t-pw)} .ty-shop{--tc:var(--t-shop)} .ty-help{--tc:var(--t-help)} .ty-other{--tc:var(--t-other)}
+.sheet{position:fixed;inset:0;z-index:30;background:rgba(10,18,26,.6);display:flex;align-items:flex-end;justify-content:center}
+.sheet .in{background:var(--surface);width:100%;max-width:560px;max-height:92%;overflow:auto;border-radius:16px 16px 0 0;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));display:grid;gap:12px}
+.sheet img{width:100%;border-radius:8px;border:1px solid var(--line)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 18px;border-radius:8px;font-weight:600;z-index:60;max-width:calc(100% - 32px)}
+.office{display:flex;gap:10px;align-items:center;justify-content:space-between;background:var(--warnbg);color:var(--warn);border-radius:10px;padding:10px 14px;font-size:.92rem}
+.office a{color:inherit;font-weight:700}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header class="bar"><div><b>BTSC Crew</b><small id="who">Baltimore Service Center</small></div><span class="sp"></span><button id="out" type="button" hidden>Sign out</button></header>
+<main>
+  <div id="boot" class="empty">Loading…</div>
+
+  <section id="notConfigured" class="card" hidden>
+    <h1>Almost ready</h1>
+    <p class="note">This site isn't connected to its database yet. Claude will finish this step with you at go-live.</p>
+  </section>
+
+  <form id="loginForm" class="card" hidden autocomplete="on">
+    <h1>Sign in</h1>
+    <label class="f">Your name<input id="lUser" type="text" autocomplete="username" autocapitalize="none" placeholder="e.g. dwyane" required></label>
+    <label class="f">PIN<input id="lPin" class="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="current-password" placeholder="••••" required></label>
+    <div class="err" id="lErr" role="alert"></div>
+    <button class="primary big" type="submit" id="lGo">Sign in</button>
+    <p class="note">No PIN yet? Ask Aaron, Nick or Jake.</p>
+  </form>
+
+  <form id="setupForm" class="card" hidden>
+    <h1>Set up the hub</h1>
+    <p class="note">First time here. Create the first office login. Everyone else gets added from the People tab after this.</p>
+    <label class="f">Your full name<input id="sName" type="text" required placeholder="Aaron Bloyer"></label>
+    <label class="f">Sign-in name<input id="sUser" type="text" required autocapitalize="none" placeholder="aaron"></label>
+    <label class="f">Choose a 4-digit PIN<input id="sPin" class="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required></label>
+    <div class="err" id="sErr" role="alert"></div>
+    <button class="primary big" type="submit" id="sGo">Create office login</button>
+  </form>
+
+  <section id="noAccess" class="card" hidden>
+    <h2>You're signed in</h2>
+    <p class="note" id="noAccessText">Your login isn't set up yet. Ask the office to add you.</p>
+  </section>
+
+  <section id="myday" hidden style="display:flex;flex-direction:column;gap:12px">
+    <div class="office" id="officeLink" hidden><span>You're an office admin.</span><a href="hub.html">Open the full hub →</a></div>
+    <div class="wk"><button type="button" id="prevW" aria-label="Previous week">‹</button><span id="wkLabel">This week</span><button type="button" id="nextW" aria-label="Next week">›</button></div>
+    <div class="days" id="days" role="group" aria-label="Day"></div>
+    <div class="prog" id="prog"></div>
+    <div id="jobs" style="display:grid;gap:10px"></div>
+    <p class="note" id="mdNote"></p>
+  </section>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
+function toast(m){document.querySelectorAll(".toast").forEach(t=>t.remove());const t=el("div","toast",m);document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
+const DAYS=[["mon","Mon"],["tue","Tue"],["wed","Wed"],["thu","Thu"],["fri","Fri"]];
+const TYPE={mow:"Mowing",cleanup:"Fall cleanup",stakes:"Snow stakes",container:"Container stocking",snowrator:"Snowrator delivery",repair:"Repair / project",pw:"Pressure wash",shop:"Shop",help:"Help crew",other:"Other"};
+const PREP={stakes:"stakes",container:"container",snowrator:"snowrator"};
+const pk=s=>String(s).replace(/[^A-Za-z0-9]/g,"_");
+const fmt=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const parse=id=>{const [y,m,d]=id.split("-").map(Number);return new Date(y,m-1,d)};
+const addDays=(id,n)=>{const d=parse(id);d.setDate(d.getDate()+n);return fmt(d)};
+function mondayOf(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());const wd=x.getDay();if(wd===6)x.setDate(x.getDate()+2);else if(wd===0)x.setDate(x.getDate()+1);x.setDate(x.getDate()-((x.getDay()+6)%7));return fmt(x)}
+const show=id=>["boot","notConfigured","loginForm","setupForm","noAccess","myday"].forEach(x=>$(x).hidden=x!==id);
+
+let me=null,tiles={},prep={},maps={},crews=[],weekId=mondayOf(new Date()),day=null,justDone=new Set();
+function todayKey(){const t=fmt(new Date());const i=DAYS.findIndex((d,j)=>addDays(weekId,j)===t);return i>=0?DAYS[i][0]:"mon"}
+function isDone(t){const c=PREP[t.type];if(c&&t.site){const v=(prep[pk(t.site)]||{})[c];return v===1||v===true}return !!t.done}
+function mine(d){return Object.entries(tiles).filter(([,t])=>t.week===weekId&&t.crew===me.crew_id&&(!d||t.day===d)).sort((a,b)=>(a[1].order||0)-(b[1].order||0))}
+
+function render(){
+  if(!me)return;
+  if(!day)day=todayKey();
+  const ws=parse(weekId);$("wkLabel").textContent="Week of "+ws.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+  const box=$("days");box.textContent="";const today=fmt(new Date());
+  DAYS.forEach(([k,l],i)=>{const date=addDays(weekId,i);const list=mine(k).filter(([,t])=>t.type!=="shop");const dn=list.filter(([,t])=>isDone(t)).length;
+    const b=el("button",date===today?"today":"");b.type="button";b.setAttribute("aria-pressed",String(k===day));
+    const d=parse(date);b.append(document.createTextNode(l),el("small",null,(d.getMonth()+1)+"/"+d.getDate()+(list.length?" · "+dn+"/"+list.length:"")));
+    b.onclick=()=>{day=k;render()};box.appendChild(b)});
+  const list=mine(day);const real=list.filter(([,t])=>t.type!=="shop");const dn=real.filter(([,t])=>isDone(t)).length;
+  const pg=$("prog");pg.textContent="";
+  if(real.length){const m=el("span","m");const i=el("i");i.style.width=(dn/real.length*100)+"%";m.appendChild(i);pg.append(m,el("b",null,dn+" of "+real.length+" done"))}
+  const jobs=$("jobs");jobs.textContent="";
+  if(!me.crew_id){jobs.appendChild(el("div","empty","You're not on a crew yet. Ask the office to put you on one."));return}
+  if(!list.length){jobs.appendChild(el("div","empty","Nothing on your schedule for this day."));return}
+  list.forEach(([id,t])=>{const done=isDone(t);const c=el("div","job ty-"+(TYPE[t.type]?t.type:"other")+(done?" isdone":"")+(justDone.has(id)?" pop":""));
+    c.appendChild(el("div","k",TYPE[t.type]||"Job"));
+    c.appendChild(el("div","s",t.type==="shop"&&!t.site?"Shop":t.site||"Job"));
+    if(t.note)c.appendChild(el("div","n",t.note));
+    if(t.crewNote)c.appendChild(el("div","n","Your note: "+t.crewNote));
+    if(done)c.appendChild(el("div","stamp","✓ Done"+(t.doneBy?" · "+t.doneBy:"")));
+    const row=el("div","row");
+    if(t.type!=="shop"){const b=el("button",done?"":"done-btn",done?"Undo":"Mark done");b.type="button";b.onclick=()=>markDone(id,t,!done,b);row.appendChild(b)}
+    const mp=maps[pk(t.site||"")];if(mp&&mp.img){const m=el("button","","Site map");m.type="button";m.onclick=()=>openMap(t.site,mp);row.appendChild(m)}
+    if(t.type!=="shop"&&!done){const n=el("button","","Add note");n.type="button";n.onclick=()=>noteSheet(id,t);row.appendChild(n)}
+    c.appendChild(row);jobs.appendChild(c)});
+  justDone.clear();
+}
+async function markDone(id,t,val,b,note){
+  b&&(b.disabled=true);
+  try{const {error}=await BTSC.sb.rpc("crew_mark_done",{p_tile:id,p_done:val,p_note:note||null});if(error)throw error;
+    if(val){justDone.add(id);toast("Done ✓ The office can see it now.")}
+    tiles[id]={...t,done:val,doneBy:me.name};const c=PREP[t.type];if(c&&t.site){prep[pk(t.site)]={...(prep[pk(t.site)]||{}),[c]:val?1:0}}render()}
+  catch(e){toast(/not your crew/i.test(e.message||"")?"That job isn't on your crew.":"Didn't save. Check your signal and try again.");b&&(b.disabled=false)}}
+function noteSheet(id,t){const s=el("div","sheet");const i=el("div","in");s.appendChild(i);
+  i.append(el("h2",null,(t.site||"Job")+" · note"),el("p","note","Tell the office about a problem, or add a note when you finish."));
+  const ta=document.createElement("textarea");ta.id="crewNote";ta.style.cssText="width:100%;min-height:110px;font:inherit;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--raise);color:var(--fg)";
+  const done=el("button","primary big","Mark done with note");done.type="button";done.onclick=()=>{s.remove();markDone(id,t,true,null,ta.value.trim())};
+  const cancel=el("button","big","Cancel");cancel.type="button";cancel.onclick=()=>s.remove();
+  i.append(ta,done,cancel);s.addEventListener("click",e=>{if(e.target===s)s.remove()});document.body.appendChild(s);setTimeout(()=>ta.focus(),50)}
+async function openMap(site,mp){const s=el("div","sheet");const i=el("div","in");s.appendChild(i);i.append(el("h2",null,site+" · site map"),el("p","note","Loading…"));
+  const c=el("button","big","Close");c.type="button";c.onclick=()=>s.remove();s.addEventListener("click",e=>{if(e.target===s)s.remove()});document.body.appendChild(s);
+  try{const u=await BTSC.blobUrl(mp.img);i.textContent="";const im=el("img");im.alt=site+" container and drop zone plan";im.src=u;i.append(el("h2",null,site+" · site map"),im,c)}
+  catch(e){i.textContent="";i.append(el("h2",null,site),el("p","note","The map couldn't load. Try again with better signal."),c)}}
+
+function subscribe(){
+  const db=BTSC.db;
+  db.collection("tiles").onSnapshot(s=>{const n={};s.docs.forEach(d=>n[d.id]=d.data());tiles=n;render()});
+  db.collection("prepsites").onSnapshot(s=>{const n={};s.docs.forEach(d=>n[d.id]=d.data());prep=n;render()});
+  db.collection("maps").onSnapshot(s=>{const n={};s.docs.forEach(d=>n[d.id]=d.data());maps=n;render()});
+  db.doc("config/crews").onSnapshot(s=>{crews=s.exists&&Array.isArray(s.data().crews)?s.data().crews:[];const c=crews.find(x=>x.id===me.crew_id);$("who").textContent=me.name+(c?" · "+c.name+"'s crew":"");render()});
+}
+$("prevW").onclick=()=>{weekId=addDays(weekId,-7);day="mon";render()};
+$("nextW").onclick=()=>{weekId=addDays(weekId,7);day="mon";render()};
+$("out").onclick=async()=>{await BTSC.logout();location.reload()};
+
+async function enter(p){
+  me=p;$("out").hidden=false;$("who").textContent=p.name;
+  if(p.missing||p.inactive){show("noAccess");$("noAccessText").textContent=p.inactive?"Your login has been turned off. Talk to the office.":"Your login isn't set up yet. Ask the office to add you.";return}
+  if(p.role==="admin"&&!location.hash.includes("myday")){location.replace("hub.html");return}
+  $("officeLink").hidden=p.role!=="admin";
+  show("myday");subscribe();render();
+}
+$("loginForm").addEventListener("submit",async e=>{e.preventDefault();$("lErr").textContent="";$("lGo").disabled=true;
+  try{const p=await BTSC.login($("lUser").value,$("lPin").value);await enter(p)}catch(err){$("lErr").textContent=err.message||"Couldn't sign in."}finally{$("lGo").disabled=false}});
+$("sName").addEventListener("input",()=>{if(!$("sUser").dataset.t)$("sUser").value=BTSC.norm($("sName").value.split(" ")[0])});
+$("sUser").addEventListener("input",()=>$("sUser").dataset.t="1");
+$("setupForm").addEventListener("submit",async e=>{e.preventDefault();$("sErr").textContent="";const name=$("sName").value.trim(),u=BTSC.norm($("sUser").value),pin=$("sPin").value.trim();
+  if(!/^\d{4}$/.test(pin)){$("sErr").textContent="The PIN must be 4 digits.";return}
+  $("sGo").disabled=true;
+  try{const sb=BTSC.sb;let r=await sb.auth.signUp({email:u+"@"+(BTSC_CONFIG.loginDomain||"btsccrewhub.com"),password:"btsc-"+pin+"-"+u});
+    if(r.error&&!/registered|exists/i.test(r.error.message))throw r.error;
+    if(!r.data?.session){const s2=await sb.auth.signInWithPassword({email:u+"@"+(BTSC_CONFIG.loginDomain||"btsccrewhub.com"),password:"btsc-"+pin+"-"+u});if(s2.error)throw new Error("Supabase is still asking for email confirmation. Turn off Confirm email in Authentication settings, then try again.")}
+    const {data:ok,error}=await sb.rpc("claim_first_admin",{p_name:name,p_username:u,p_pin:pin});if(error)throw error;
+    if(!ok)throw new Error("The hub already has an office login. Sign in instead.");
+    const p=await BTSC.loadMe();await enter(p)}
+  catch(err){$("sErr").textContent=err.message||"Setup didn't finish."}finally{$("sGo").disabled=false}});
+
+(async()=>{
+  if(!BTSC.configured){show("notConfigured");return}
+  const p=await BTSC.ready;
+  let needSetup=false;try{const {data}=await BTSC.sb.rpc("setup_needed");needSetup=!!data}catch(e){}
+  if(p&&!(p.missing&&needSetup)){await enter(p);return}
+  show(needSetup?"setupForm":"loginForm");
+})();
+</script>
+</body>
+</html>
