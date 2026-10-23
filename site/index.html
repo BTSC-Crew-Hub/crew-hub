@@ -89,6 +89,29 @@ label.f{display:grid;gap:5px;font-size:.78rem;font-weight:700;letter-spacing:.05
 .sheet .in{background:var(--surface);width:100%;max-width:560px;max-height:92%;overflow:auto;border-radius:16px 16px 0 0;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));display:grid;gap:12px}
 .sheet img{width:100%;border-radius:8px;border:1px solid var(--line)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 18px;border-radius:8px;font-weight:600;z-index:60;max-width:calc(100% - 32px)}
+.vtabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px}
+.vtabs button{border:0;background:transparent;font-family:var(--display);font-size:1.15rem;text-transform:uppercase;letter-spacing:.04em;padding:9px}
+.vtabs button[aria-pressed="true"]{background:var(--fg);color:var(--surface)}
+.msearch{font-size:1rem}
+.mlist{display:grid;gap:8px}
+.mrow{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;text-align:left;width:100%}
+.mrow .c{font-family:var(--display);font-size:1.5rem;line-height:1;min-width:4.2em}
+.mrow .a{flex:1;min-width:0;color:var(--muted);font-size:.88rem;font-weight:400}
+.mrow .tag{font-size:.7rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--accent);display:block;margin-top:2px}
+.mrow .go{font-size:1.4rem;color:var(--muted)}
+.mview{position:fixed;inset:0;z-index:40;background:#0b1015;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.mview .top{display:flex;align-items:center;gap:10px;padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));background:#14202b;color:#fff;border-bottom:3px solid var(--accent)}
+.mview .top b{font-family:var(--display);font-size:1.5rem;text-transform:uppercase;display:block;line-height:1}
+.mview .top small{opacity:.8;font-size:.8rem;display:block}
+.mview .top .sp{flex:1;min-width:0}
+.mview .top button{background:#fff;color:#14202b;border-color:#fff}
+.mview .pic{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;align-items:flex-start;justify-content:center;touch-action:pan-x pan-y pinch-zoom}
+.mview .pic img{width:100%;max-width:none;display:block;transition:width .2s}
+.mview .pic.zoom{justify-content:flex-start}
+.mview .pic.zoom img{width:240%}
+.mview .bot{display:flex;gap:8px;flex-wrap:wrap;padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));background:#14202b}
+.mview .bot a,.mview .bot button{flex:1;min-width:120px;text-align:center;text-decoration:none;font-weight:600;border-radius:8px;padding:12px;background:#fff;color:#14202b;border:0;font-size:1rem}
+.mview .msg{color:#c9d2db;padding:30px 16px;text-align:center}
 .office{display:flex;gap:10px;align-items:center;justify-content:space-between;background:var(--warnbg);color:var(--warn);border-radius:10px;padding:10px 14px;font-size:.92rem}
 .office a{color:inherit;font-weight:700}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -130,11 +153,18 @@ label.f{display:grid;gap:5px;font-size:.78rem;font-weight:700;letter-spacing:.05
 
   <section id="myday" hidden style="display:flex;flex-direction:column;gap:12px">
     <div class="office" id="officeLink" hidden><span>You're an office admin.</span><a href="hub.html">Open the full hub →</a></div>
+    <div class="vtabs" role="group" aria-label="View"><button type="button" id="vDay" aria-pressed="true">My day</button><button type="button" id="vMaps" aria-pressed="false">Site maps</button></div>
+    <div id="mapsView" hidden style="display:grid;gap:10px">
+      <input id="mQ" class="msearch" type="search" placeholder="Find a site, like DMD4 or Edgewood" aria-label="Find a site">
+      <div class="mlist" id="mList"></div>
+    </div>
+    <div id="dayView" style="display:flex;flex-direction:column;gap:12px">
     <div class="wk"><button type="button" id="prevW" aria-label="Previous week">‹</button><span id="wkLabel">This week</span><button type="button" id="nextW" aria-label="Next week">›</button></div>
     <div class="days" id="days" role="group" aria-label="Day"></div>
     <div class="prog" id="prog"></div>
     <div id="jobs" style="display:grid;gap:10px"></div>
     <p class="note" id="mdNote"></p>
+    </div>
   </section>
 </main>
 
@@ -145,6 +175,7 @@ function toast(m){document.querySelectorAll(".toast").forEach(t=>t.remove());con
 const DAYS=[["mon","Mon"],["tue","Tue"],["wed","Wed"],["thu","Thu"],["fri","Fri"]];
 const TYPE={mow:"Mowing",cleanup:"Fall cleanup",stakes:"Snow stakes",container:"Container stocking",snowrator:"Snowrator delivery",repair:"Repair / project",pw:"Pressure wash",shop:"Shop",help:"Help crew",other:"Other"};
 const PREP={stakes:"stakes",container:"container",snowrator:"snowrator"};
+const SITE_ADDR={"MTN1": "1025 Boxwood Rd, Wilmington, DE 19804", "DGI3": "851 Boxwood Rd, Wilmington, DE 19804", "KRB5": "600 Principio Pkwy W, North East, MD 21901", "MTN2": "913 Old Philadelphia Rd, Aberdeen, MD 21001", "DMD2": "2203 Lakeside Blvd, Edgewood, MD 21040", "DMD2 PKG": "2211 Lakeside Blvd, Edgewood, MD 21040", "MTN6": "1701 Finishing Mill Rd, Sparrows Point, MD 21219", "DCA6": "6001 Bethlehem Blvd, Sparrows Point, MD 21219", "DMD4": "102 Fulfillment Dr, Edgewood, MD 21040", "DLD1 PKG": "7659 Solley Rd, Curtis Bay, MD 21226", "DLD1": "7663 Solley Rd, Glen Burnie, MD 21060", "DMD6": "7226 Preston Gateway Dr, Hanover, MD 21076", "DMD6 PKG": "1200 Old Stoney Run Rd, Hanover, MD 21076", "DVA5": "11920 Balls Ford Rd, Manassas, VA 20109", "DWD6": "3700 Forestville Rd, District Heights, MD 20747", "DMD9": "1000 Prince Georges Blvd, Upper Marlboro, MD 20774", "CHO1": "32 Trader Rd, Fishersville, VA 22939", "RMN3": "220 Centreport Pkwy, Fredericksburg, VA 22406", "RIC4": "5901 Richmond Henrico Tpke, Richmond, VA 23227", "RIC5": "11600 N Lakeridge Pkwy, Ashland, VA 23005", "ORF5": "2150 Enterprise Dr, Suffolk, VA 23434", "SVA2": "2000 Enterprise Pkwy, Hampton, VA 23666", "RDU2": "2095 W Market St, Smithfield, NC 27577", "RDU1": "4851 Jones Sausage Rd, Garner, NC 27529", "RDU4": "6309 Bragg Blvd, Fayetteville, NC 28303", "Chewy CLT1": "255 Front Creek Rd, Salisbury, NC 28146", "320 Webb Rd": "320 Webb Rd, Salisbury, NC 28147", "DLT3": "413 Goodman Rd, Concord, NC 28027", "CLT3": "6500 Davidson Hwy, Concord, NC 28027", "DLT8": "9817 Old Statesville Rd, Charlotte, NC 28269", "SNC6": "6255 Shumard St, Concord, NC 28027", "CLT4": "8000 Tuckaseegee Rd, Charlotte, NC 28214", "DCD6": "4226 Beam Rd, Charlotte, NC 28217", "CLT9": "3620 Reeves Ridge Dr, Charlotte, NC 28214", "CLT2": "10240 Old Dowd Rd, Charlotte, NC 28214"};
 const pk=s=>String(s).replace(/[^A-Za-z0-9]/g,"_");
 const fmt=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const parse=id=>{const [y,m,d]=id.split("-").map(Number);return new Date(y,m-1,d)};
@@ -197,18 +228,46 @@ function noteSheet(id,t){const s=el("div","sheet");const i=el("div","in");s.appe
   const done=el("button","primary big","Mark done with note");done.type="button";done.onclick=()=>{s.remove();markDone(id,t,true,null,ta.value.trim())};
   const cancel=el("button","big","Cancel");cancel.type="button";cancel.onclick=()=>s.remove();
   i.append(ta,done,cancel);s.addEventListener("click",e=>{if(e.target===s)s.remove()});document.body.appendChild(s);setTimeout(()=>ta.focus(),50)}
-async function openMap(site,mp){const s=el("div","sheet");const i=el("div","in");s.appendChild(i);i.append(el("h2",null,site+" · site map"),el("p","note","Loading…"));
-  const c=el("button","big","Close");c.type="button";c.onclick=()=>s.remove();s.addEventListener("click",e=>{if(e.target===s)s.remove()});document.body.appendChild(s);
-  try{const u=await BTSC.blobUrl(mp.img);i.textContent="";const im=el("img");im.alt=site+" container and drop zone plan";im.src=u;i.append(el("h2",null,site+" · site map"),im,c)}
-  catch(e){i.textContent="";i.append(el("h2",null,site),el("p","note","The map couldn't load. Try again with better signal."),c)}}
+function siteOf(key){const m=maps[key];return (m&&m.site)||Object.keys(SITE_ADDR).find(x=>pk(x)===key)||key.replace(/_/g," ")}
+async function openMap(site,mp){
+  const v=el("div","mview");v.setAttribute("role","dialog");v.setAttribute("aria-label",site+" site map");
+  const top=el("div","top");const t=el("div","sp");t.append(el("b",null,site),el("small",null,SITE_ADDR[site]||"Container and drop zone plan"));
+  const close=el("button","","Close");close.type="button";top.append(t,close);
+  const pic=el("div","pic");pic.appendChild(el("div","msg","Loading the map…"));
+  const bot=el("div","bot");v.append(top,pic,bot);document.body.appendChild(v);
+  const done=()=>{v.remove();history.state&&history.state.btscMap&&history.back()};
+  close.onclick=done;
+  try{history.pushState({btscMap:1},"")}catch(e){}
+  const onPop=()=>{v.remove();window.removeEventListener("popstate",onPop)};window.addEventListener("popstate",onPop);
+  try{const u=await BTSC.blobUrl(mp.img);pic.textContent="";const im=el("img");im.alt=site+" container and drop zone plan";im.src=u;
+    im.onclick=()=>pic.classList.toggle("zoom");pic.appendChild(im);
+    const z=el("button","","Zoom in");z.type="button";z.onclick=()=>{pic.classList.toggle("zoom");z.textContent=pic.classList.contains("zoom")?"Zoom out":"Zoom in"};
+    const full=el("a",null,"Full size");full.href=u;full.target="_blank";full.rel="noopener";
+    bot.append(z,full)}
+  catch(e){pic.textContent="";pic.appendChild(el("div","msg","The map couldn't load. Try again with better signal."))}
+  if(SITE_ADDR[site]){const d=el("a",null,"Directions");d.href="https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(SITE_ADDR[site]);d.target="_blank";d.rel="noopener";bot.appendChild(d)}
+}
+let view="day";
+function setView(v){view=v;$("vDay").setAttribute("aria-pressed",String(v==="day"));$("vMaps").setAttribute("aria-pressed",String(v==="maps"));$("dayView").hidden=v!=="day";$("mapsView").hidden=v!=="maps";if(v==="maps")renderMaps();try{localStorage.setItem("btscView",v)}catch(e){}}
+function renderMaps(){
+  const box=$("mList");if(!box)return;box.textContent="";const q=$("mQ").value.trim().toLowerCase();
+  const onWeek=new Set(mine().map(([,t])=>pk(t.site||"")));
+  const rows=Object.entries(maps).filter(([,m])=>m&&m.img).map(([k,m])=>({k,m,site:siteOf(k)}))
+    .filter(r=>!q||(r.site+" "+(SITE_ADDR[r.site]||"")).toLowerCase().includes(q))
+    .sort((a,b)=>(onWeek.has(b.k)-onWeek.has(a.k))||a.site.localeCompare(b.site));
+  if(!rows.length){box.appendChild(el("div","empty",Object.keys(maps).length?"No site matches that search.":"No site maps yet. The office adds them."));return}
+  rows.forEach(r=>{const b=el("button","mrow");b.type="button";const c=el("span","c",r.site);const a=el("span","a",SITE_ADDR[r.site]||"");
+    if(onWeek.has(r.k))a.appendChild(el("span","tag","On your schedule this week"));
+    b.append(c,a,el("span","go","›"));b.onclick=()=>openMap(r.site,r.m);box.appendChild(b)})}
 
 function subscribe(){
   const db=BTSC.db;
   db.collection("tiles").onSnapshot(s=>{const n={};s.docs.forEach(d=>n[d.id]=d.data());tiles=n;render()});
   db.collection("prepsites").onSnapshot(s=>{const n={};s.docs.forEach(d=>n[d.id]=d.data());prep=n;render()});
-  db.collection("maps").onSnapshot(s=>{const n={};s.docs.forEach(d=>n[d.id]=d.data());maps=n;render()});
+  db.collection("maps").onSnapshot(s=>{const n={};s.docs.forEach(d=>n[d.id]=d.data());maps=n;render();if(view==="maps")renderMaps()});
   db.doc("config/crews").onSnapshot(s=>{crews=s.exists&&Array.isArray(s.data().crews)?s.data().crews:[];const c=crews.find(x=>x.id===me.crew_id);$("who").textContent=me.name+(c?" · "+c.name+"'s crew":"");render()});
 }
+$("vDay").onclick=()=>setView("day");$("vMaps").onclick=()=>setView("maps");$("mQ").addEventListener("input",renderMaps);
 $("prevW").onclick=()=>{weekId=addDays(weekId,-7);day="mon";render()};
 $("nextW").onclick=()=>{weekId=addDays(weekId,7);day="mon";render()};
 $("out").onclick=async()=>{await BTSC.logout();location.reload()};
@@ -218,7 +277,7 @@ async function enter(p){
   if(p.missing||p.inactive){show("noAccess");$("noAccessText").textContent=p.inactive?"Your login has been turned off. Talk to the office.":"Your login isn't set up yet. Ask the office to add you.";return}
   if(p.role==="admin"&&!location.hash.includes("myday")){location.replace("hub.html");return}
   $("officeLink").hidden=p.role!=="admin";
-  show("myday");subscribe();render();
+  show("myday");subscribe();render();let v0="day";try{v0=localStorage.getItem("btscView")||"day"}catch(e){}setView(v0==="maps"?"maps":"day");
 }
 $("loginForm").addEventListener("submit",async e=>{e.preventDefault();$("lErr").textContent="";$("lGo").disabled=true;
   try{const p=await BTSC.login($("lUser").value,$("lPin").value);await enter(p)}catch(err){$("lErr").textContent=err.message||"Couldn't sign in."}finally{$("lGo").disabled=false}});
