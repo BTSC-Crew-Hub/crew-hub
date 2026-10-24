@@ -271,6 +271,9 @@ td:hover .addcell,.addcell:focus-visible{opacity:1}
 .pal{font-size:.8rem;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--tb);color:var(--fg);border:1px solid color-mix(in srgb,var(--tc) 40%,transparent);cursor:grab;user-select:none;-webkit-user-select:none}
 .pal::before{content:"+ ";color:var(--tc);font-weight:700}
 .pal.dragging{opacity:.4}
+.pal.pdone{opacity:.55}
+.pal.psched{opacity:.7;border-style:dashed}
+.palrow select{font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--tc);background:var(--tb);border:1px solid color-mix(in srgb,var(--tc) 40%,transparent);border-radius:6px;padding:2px 4px;max-width:150px}
 .ctabs{display:flex;flex-wrap:wrap;gap:4px}
 .ctabs button{padding:4px 10px;font-size:.85rem}
 .ctabs button[aria-pressed="true"]{background:var(--fg);color:var(--surface);border-color:var(--fg)}
@@ -434,8 +437,8 @@ td:hover .addcell,.addcell:focus-visible{opacity:1}
     <section class="tray">
       <h2>To schedule <span class="count" id="trayCount"></span></h2>
       <div class="zone" id="trayZone" data-drop="tray"></div>
-      <details class="palette" id="palette" hidden><summary>Quick add: mowing and fall cleanups</summary>
-        <div class="note">Mowing and fall cleanups can go on as many times as you need. Drag a site onto any crew and day, and a new tile is made each time. Tap one to pick the crew and day instead.</div>
+      <details class="palette" id="palette" hidden><summary>Quick add: mowing, fall cleanups and snow sites</summary>
+        <div class="note">Drag a site onto any crew and day to make a tile, or tap it to pick the crew and day. Mowing and fall cleanups can go on as many times as you need. For snow sites, pick the job first; a ✓ means that site is already done, and faded means it is already on the schedule.</div>
         <div id="palRows" style="display:grid;gap:6px"></div>
       </details>
     </section>
@@ -575,7 +578,7 @@ const PREP_SITES=[
  ["East DC",[["DWD6","3700 Forestville Rd, District Heights, MD 20747"],["DMD9","1000 Prince Georges Blvd, Upper Marlboro, MD 20774"]]],
  ["Fishersville VA",[["CHO1","32 Trader Rd, Fishersville, VA 22939"]]],
  ["Fredericksburg VA",[["RMN3","220 Centreport Pkwy, Fredericksburg, VA 22406"]]],
- ["Richmond VA",[["RIC4","5901 Richmond Henrico Tpke, Richmond, VA 23227"],["RIC5","11600 N Lakeridge Pkwy, Ashland, VA 23005"],["ORF5","2150 Enterprise Dr, Suffolk, VA 23434"],["SVA2","2000 Enterprise Pkwy, Hampton, VA 23666"]]],
+ ["Richmond VA",[["RIC4","5901 Richmond Henrico Tpke, Richmond, VA 23227"],["RIC5","11600 N Lakeridge Pkwy, Ashland, VA 23005"],["RIC5 PKG","",["stakes","ivueit"]],["ORF5","2150 Enterprise Dr, Suffolk, VA 23434"],["SVA2","2000 Enterprise Pkwy, Hampton, VA 23666"]]],
  ["NC 1",[["RDU2","2095 W Market St, Smithfield, NC 27577"],["RDU1","4851 Jones Sausage Rd, Garner, NC 27529"],["RDU4","6309 Bragg Blvd, Fayetteville, NC 28303"]]],
  ["NC 2",[["Chewy CLT1","255 Front Creek Rd, Salisbury, NC 28146"],["320 Webb Rd","320 Webb Rd, Salisbury, NC 28147"]]],
  ["NC 3",[["DLT3","413 Goodman Rd, Concord, NC 28027"],["CLT3","6500 Davidson Hwy, Concord, NC 28027"],["DLT8","9817 Old Statesville Rd, Charlotte, NC 28269"],["SNC6","6255 Shumard St, Concord, NC 28027"]]],
@@ -583,7 +586,8 @@ const PREP_SITES=[
 const pk=s=>s.replace(/[^A-Za-z0-9]/g,"_");
 const PLANNED_SNOWRATOR={MTN1:"SNWRTR 24, 25",DLD1:"SNWRTR 38",DMD9:"SNWRTR 30",DVA5:"SNWRTR 37",RMN3:"SNWRTR 39",CHO1:"SNWRTR 83"};
 S.prep={};let prepCanWrite=false;
-function pState(site,col){const v=(S.prep[pk(site)]||{})[col];return v==="na"?"na":v?"on":"off";}
+const PREP_ONLY={};PREP_SITES.forEach(([,l])=>l.forEach(x=>{if(Array.isArray(x[2]))PREP_ONLY[x[0]]=x[2]}));
+function pState(site,col){const v=(S.prep[pk(site)]||{})[col];if(v==null&&PREP_ONLY[site]&&!PREP_ONLY[site].includes(col))return "na";return v==="na"?"na":v?"on":"off";}
 function prepStats(){const cols={};PREP_COLS.forEach(([c])=>cols[c]={done:0,tot:0});const site={};let done=0,tot=0;
   PREP_SITES.forEach(([,list])=>list.forEach(([s])=>{let d=0,t=0;PREP_COLS.forEach(([c])=>{const st=pState(s,c);if(st==="na")return;t++;cols[c].tot++;if(st==="on"){d++;cols[c].done++;}});site[s]={d,t};done+=d;tot+=t;}));
   return {cols,site,done,tot,pct:tot?Math.round(done/tot*100):0};}
@@ -928,7 +932,22 @@ function renderPalette(){
       p.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openTile(null,{type:t.k,site,week:weekId})}});
       row.appendChild(p)});
     box.appendChild(row)});
+  // Snow sites: pick the job, then drag a site on. Done sites show a check; N/A sites are hidden.
+  const snowT=TYPES.filter(t=>t.prep);if(!TY[palSnow])palSnow="stakes";
+  const row=el("div","palrow ty-"+palSnow);const sel=el("select");sel.id="palSnowType";sel.setAttribute("aria-label","Snow job type");
+  snowT.forEach(t=>sel.add(new Option(t.label,t.k)));sel.value=palSnow;sel.onchange=()=>{palSnow=sel.value;renderPalette()};
+  const lab=el("span","plab");lab.appendChild(sel);row.appendChild(lab);
+  const cov=coverage(palSnow);
+  (lists.snow||[]).forEach(site=>{const st=(cov[site]||{}).state||"none";if(st==="na")return;
+    const p=el("span","pal"+(st==="done"?" pdone":st==="sched"?" psched":""),site+(st==="done"?" ✓":""));p.tabIndex=0;p.setAttribute("role","button");p.dataset.pal=palSnow+"|"+site;
+    p.title=st==="done"?"Already done":st==="sched"?"Already on the schedule":st==="tray"?"Waiting in To schedule":"Not started";
+    p.setAttribute("aria-label","Add a "+TY[palSnow].label+" tile for "+site+" ("+p.title+")");
+    p.addEventListener("pointerdown",onDown);
+    p.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openTile(null,{type:palSnow,site,week:weekId})}});
+    row.appendChild(p)});
+  box.appendChild(row);
 }
+let palSnow="stakes";
 
 /* --- writes --- */
 let bChain=Promise.resolve();
@@ -1614,7 +1633,7 @@ async function startBoard(){
   $("saveBar").hidden=!bCanWrite;
   if(cw===false)notice("You can see the schedule but can't change it. To make changes, ask Aaron to make you an office admin on the People tab.");
   db.doc("config/crews").onSnapshot(s=>{if(s.exists&&Array.isArray(s.data().crews))crews=s.data().crews;fillWhere();bRender()},()=>{});
-  db.doc("config/library").onSnapshot(s=>{if(s.exists&&s.data().lists){lists=Object.assign({},s.data().lists);if(!lists.cleanup)lists.cleanup=(lists.mowing||DEFAULT_LISTS.cleanup).slice()}renderAddPanel();bRender()},()=>{});
+  db.doc("config/library").onSnapshot(s=>{if(s.exists&&s.data().lists){lists=Object.assign({},s.data().lists);if(!lists.cleanup)lists.cleanup=(lists.mowing||DEFAULT_LISTS.cleanup).slice()}lists.snow=[...(lists.snow||[])];Object.keys(PREP_ONLY).forEach(x=>{if(!lists.snow.includes(x))lists.snow.push(x)});renderAddPanel();bRender()},()=>{});
   db.collection("tiles").limit(1000).onSnapshot(s=>{const next={};s.docs.forEach(d=>next[d.id]=d.data());serverTiles=next;tiles=Object.assign({},next);loaded=true;bRender();refreshPrepViews()},
     ()=>notice("Live updates stopped. Reload the page to reconnect."));
   subscribeWeek();
